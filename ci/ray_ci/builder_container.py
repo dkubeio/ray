@@ -8,6 +8,11 @@ BUILD_TYPE = [
     "debug",
 ]
 
+ARCHITECTURE = [
+    "x86_64",
+    "aarch64",
+]
+
 
 class PythonVersionInfo(TypedDict):
     bin_path: str
@@ -23,9 +28,9 @@ PYTHON_VERSIONS = {
 
 
 class BuilderContainer(Container):
-    def __init__(self, python_version: str, build_type: str) -> None:
+    def __init__(self, python_version: str, build_type: str, architecture: str) -> None:
         super().__init__(
-            "manylinux",
+            f"manylinux.{architecture}",
             volumes=[f"{os.environ.get('RAYCI_CHECKOUT_DIR')}:/rayci"],
         )
         python_version_info = PYTHON_VERSIONS.get(python_version)

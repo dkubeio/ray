@@ -1,7 +1,15 @@
 group: build
 steps:
-  - name: manylinux
+  - name: manylinux_x86_64
     wanda: ci/docker/manylinux.wanda.yaml
+    env:
+      HOST_TYPE: x86_64
+
+  - name: manylinux_aarch64
+    wanda: ci/docker/manylinux.wanda.yaml
+    instance_type: builder-arm64
+    env:
+      HOST_TYPE: aaarch64
 
   - name: raycudabase
     label: "wanda: ray.py{{matrix.python}}.cu{{matrix.cuda}}.base"
@@ -77,20 +85,37 @@ steps:
     env:
       PYTHON_VERSION: "{{matrix}}"
 
-  - label: ":tapioca: build: wheel {{matrix}}"
+  - label: ":tapioca: build: wheel {{matrix}} (x86_64)"
     tags:
       - linux_wheels
       - oss
     instance_type: medium
     commands:
-      - bazel run //ci/ray_ci:build_in_docker -- wheel --python-version {{matrix}}
+      - bazel run //ci/ray_ci:build_in_docker -- wheel --python-version {{matrix}} --architecture x86_64
     matrix:
       - "3.8"
       - "3.9"
       - "3.10"
       - "3.11"
     depends_on:
-      - manylinux
+      - manylinux_x86_64
+      - forge
+    job_env: forge
+
+  - label: ":tapioca: build: wheel {{matrix}} (aarch64)"
+    tags:
+      - linux_wheels
+      - oss
+    instance_type: medium-arm64
+    commands:
+      - bazel run //ci/ray_ci:build_in_docker -- wheel --python-version {{matrix}} --architecture aarch64
+    matrix:
+      - "3.8"
+      - "3.9"
+      - "3.10"
+      - "3.11"
+    depends_on:
+      - manylinux_aarch64
       - forge
     job_env: forge
 

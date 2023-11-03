@@ -2,7 +2,12 @@ from typing import List
 
 import click
 
-from ci.ray_ci.builder_container import PYTHON_VERSIONS, BUILD_TYPE, BuilderContainer
+from ci.ray_ci.builder_container import (
+    PYTHON_VERSIONS,
+    BUILD_TYPE,
+    ARCHITECTURE,
+    BuilderContainer,
+)
 from ci.ray_ci.doc_builder_container import DocBuilderContainer
 from ci.ray_ci.forge_container import ForgeContainer
 from ci.ray_ci.docker_container import PLATFORM
@@ -38,6 +43,12 @@ from ci.ray_ci.utils import logger, docker_login
     "--platform",
     multiple=True,
     type=click.Choice(list(PLATFORM)),
+    help=("Platform to build the docker with"),
+)
+@click.option(
+    "--architecture",
+    multiple=True,
+    type=click.Choice(list(ARCHITECTURE)),
     help=("Platform to build the docker with"),
 )
 def main(
