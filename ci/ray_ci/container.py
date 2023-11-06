@@ -91,6 +91,8 @@ class Container:
             "--rm",
             "--volume",
             "/tmp/artifacts:/artifact-mount",
+            "--volume",
+            "/var/run/docker.sock:/var/run/docker.sock",
         ]
         for volume in self.volumes:
             command += ["--volume", volume]

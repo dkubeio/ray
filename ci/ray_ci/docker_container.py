@@ -48,9 +48,9 @@ class DockerContainer(Container):
             return [f"{release_name}.{sha_tag}"]
 
         if pr != "false":
-            return [f"pr-{pr}.{sha_tag}"]
+            return ["nightly", f"pr-{pr}.{sha_tag}"]
 
-        return [sha_tag]
+        return ["nightly", sha_tag]
 
     def _get_canonical_tag(self) -> str:
         # The canonical tag is the first tag in the list of tags. The list of tag is
