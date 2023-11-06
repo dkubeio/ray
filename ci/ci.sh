@@ -617,9 +617,9 @@ configure_system() {
 # - JOB_NAMES (optional): Comma-separated list of job names to trigger on.
 init() {
   # TODO(jjyao): fix it for windows
-  if [ "${OSTYPE}" != msys ]; then
-    _check_job_triggers "${1-}"
-  fi
+  # if [ "${OSTYPE}" != msys ]; then
+  # . _check_job_triggers "${1-}"
+  # fi
 
   configure_system
 

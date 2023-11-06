@@ -260,7 +260,10 @@ if __name__ == "__main__":
                 or changed_file == ".buildkite/pipeline.ml.yml"
             ):
                 RAY_CI_PYTHON_AFFECTED = 1
-            elif changed_file.startswith("java/"):
+            elif (
+                changed_file.startswith("java/")
+                or changed_file == ".buildkite/others.rayci.yml"
+            ):
                 RAY_CI_JAVA_AFFECTED = 1
             elif changed_file.startswith("cpp/"):
                 RAY_CI_CPP_AFFECTED = 1

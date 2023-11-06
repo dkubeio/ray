@@ -1,0 +1,12 @@
+group: others
+steps:
+  # test
+  - label: ":java: java tests"
+    tags: java
+    instance_type: medium
+    commands:
+      - BUILD=1 ./ci/ci.sh init
+      - ./ci/ci.sh build
+      - ./java/test.sh
+    depends_on: oss-ci-base_build
+    job_env: oss-ci-base_build
