@@ -27,6 +27,7 @@ from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     get_linear_schedule_with_warmup,
+    BitsAndBytesConfig, #MAK
 )
 
 from peft import LoraConfig, get_peft_model
@@ -238,6 +239,7 @@ def training_function(kwargs: dict):
     base_path = Path(download_path).parent
     base_path.mkdir(parents=True, exist_ok=True)
     lock_file = str(base_path / f'{model_id.replace("/",  "--")}.lock')
+    # OSM - There was a problem with this. Need to eval again
     with FileLock(lock_file):
         download_model(
             model_id=model_id, bucket_uri=bucket_uri, s3_sync_args=["--no-sign-request"]
@@ -281,8 +283,16 @@ def training_function(kwargs: dict):
     pretrained_path = get_pretrained_path(model_id)
     print(f"Loading model from {pretrained_path} ...")
     s = time.time()
+    ######### MAK #########
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16,
+    )    
+    ######### MAK #########
     model = AutoModelForCausalLM.from_pretrained(
         pretrained_path,
+        #quantization_config=bnb_config,
         trust_remote_code=True,
         torch_dtype=torch.bfloat16,
         # `use_cache=True` is incompatible with gradient checkpointing.
@@ -378,11 +388,15 @@ def training_function(kwargs: dict):
         print("Starting training ...")
         print("Number of batches on main process", train_ds_len // batch_size)
 
+    # Is this needed?
+    torch.cuda.set_per_process_memory_fraction(0.80, accelerator.device)
+
     for epoch in range(num_epochs):
         fwd_time_sum, bwd_time_sum, optim_step_time_sum = 0, 0, 0
         s_epoch = time.time()
         model.train()
         loss_sum = torch.tensor(0.0).to(accelerator.device)
+
 
         train_dataloader = train_ds.iter_torch_batches(
             batch_size=batch_size,
@@ -423,6 +437,8 @@ def training_function(kwargs: dict):
                 )
 
             aggregated_loss = torch.mean(accelerator.gather(loss[None])).item()
+
+            #torch.cuda.empty_cache()
 
             if config["as_test"]:
                 break
@@ -557,7 +573,6 @@ def training_function(kwargs: dict):
         if perplex < args.stop_perplexity:
             print(f"Perplexity reached {perplex} < {args.stop_perplexity}. Stopping.")
             break
-
         if config["as_test"]:
             break
 
@@ -594,7 +609,7 @@ def parse_args():
     parser.add_argument(
         "--eval-batch-size-per-device",
         type=int,
-        default=64,
+        default=16,
         help="Batch size to use per device (For evaluation).",
     )
 
@@ -700,10 +715,15 @@ def main():
 
     os.environ["RAY_AIR_LOCAL_CACHE_DIR"] = args.output_dir
 
+    artifact_storage = "/home"
+    user_name = os.environ.get("USER", "songole")
+    hf_cache_dir = f"{artifact_storage}/{user_name}/.cache/huggingface"
+
+
     ray.init(
         runtime_env={
             "env_vars": {
-                "HF_HOME": "/mnt/local_storage/.cache/huggingface",
+                "HF_HOME": hf_cache_dir,
                 "RAY_AIR_LOCAL_CACHE_DIR": os.environ["RAY_AIR_LOCAL_CACHE_DIR"],
             },
             "working_dir": ".",
@@ -721,14 +741,18 @@ def main():
     with open(args.special_token_path, "r") as json_file:
         special_tokens = json.load(json_file)["tokens"]
 
+    '''
     assert (
         "ANYSCALE_ARTIFACT_STORAGE" in os.environ
     ), "ANYSCALE_ARTIFACT_STORAGE env var must be set!"
     artifact_storage = os.environ["ANYSCALE_ARTIFACT_STORAGE"]
     user_name = re.sub(r"\s+", "__", os.environ.get("ANYSCALE_USERNAME", "user"))
+    '''
     storage_path = (
         f"{artifact_storage}/{user_name}/ft_llms_with_deepspeed/{args.model_name}"
     )
+
+
 
     trial_name = f"{args.model_name}".split("/")[-1]
     if args.lora:

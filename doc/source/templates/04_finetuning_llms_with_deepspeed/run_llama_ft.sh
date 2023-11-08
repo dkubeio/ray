@@ -14,6 +14,8 @@ check_and_create_dataset() {
 }
 
 # Function to fine-tune the model
+submissionid=`echo $RANDOM | md5sum | head -c 20; echo;`
+echo "$submissionid"
 fine_tune() {
     local bs=$1
     local nd=$2
@@ -25,7 +27,7 @@ fine_tune() {
     local token_path=$8
     local params=("${@:9}")
     echo "Fine-tuning model..."
-    if ! python finetune_hf_llm.py \
+    if ! d3x ray job submit --submission-id $submissionid --working-dir $PWD -- python finetune_hf_llm.py \
         -bs "${bs}" \
         -nd "${nd}" \
         --model_name "${model_name}" \
@@ -35,7 +37,7 @@ fine_tune() {
         --test_path "${test_path}"  \
         --special_token_path "${token_path}" \
         --num-checkpoints-to-keep 1 \
-        --num-epochs 3 \
+        --num-epochs 1 \
         "${params[@]}"; then
         echo "Failed to fine-tune the model. Exiting..."
         exit 1
@@ -43,11 +45,12 @@ fine_tune() {
 }
 
 # Variables for cleaner handling
-BASE_DIR="/mnt/local_storage"
-DATA_DIR="./data"
-TRAIN_PATH="${DATA_DIR}/train.jsonl"
-TEST_PATH="${DATA_DIR}/test.jsonl"
+BASE_DIR="$HOME/rayft-full/results/"
+DATA_DIR="$HOME/chunks_finetune/data-10-27-08/"
+TRAIN_PATH="${DATA_DIR}/train/"
+TEST_PATH="${DATA_DIR}/test/"
 TOKEN_PATH="${DATA_DIR}/tokens.json"
+
 
 # Parse arguments
 SIZE=""
@@ -70,15 +73,17 @@ done
 # Batch size and node count
 case $SIZE in
 "7b")
-    BS=16
-    ND=16
+    BS=10
+    #ND2
+    ND=4
     ;;
 "13b")
-    BS=16
-    ND=16
+    BS=20
+    #ND=16
+    ND=8
     ;;
 "70b")
-    BS=8
+    BS=16
     ND=32
     ;;
 *)
@@ -91,7 +96,7 @@ esac
 MODEL_ID="meta-llama/Llama-2-${SIZE}-hf"
 CONFIG_DIR="./deepspeed_configs/zero_3_llama_2_${SIZE}.json"
 
-check_and_create_dataset "${DATA_DIR}"
+#check_and_create_dataset "${DATA_DIR}"
 
 fine_tune "$BS" "$ND" "$MODEL_ID" "$BASE_DIR" "$CONFIG_DIR" "$TRAIN_PATH" "$TEST_PATH" "$TOKEN_PATH" "${params[@]}"
 

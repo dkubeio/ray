@@ -1,0 +1,11 @@
+4 gpu cluster
+d3x ray create -n ray-13b-ft -i  dkubex123/llama213b:rayft --cpu 44 --gpu 4 --memory 184  --hcpu 8 --hmemory 16 --type g5.12xlarge
+8 gpu cluster
+d3x ray create -n ray-13b-ft -i  dkubex123/llama213b:rayft --hcpu 8 --hmemory 16  --cpu 180 --memory 740 --gpu 8 --type g5.48xlarge
+
+Edit run_llama_ft_d3x.sh and update 
+ND - number of devices (gpus)
+BS - Batch size 
+HOME & DATA_DIR etc should point to correct directories
+
+./run_llama_ft_d3x.sh --size=13b --lora 
