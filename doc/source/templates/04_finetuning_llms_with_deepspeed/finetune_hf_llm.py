@@ -231,19 +231,22 @@ def training_function(kwargs: dict):
     args = argparse.Namespace(**kwargs["args"])
     special_tokens = kwargs.get("special_tokens", [])
     model_id = config["model_name"]
+    os.environ["MODEL_PATH"] = config["model_path"]
 
-    # We need to download the model weights on this machine if they don't exit.
-    # We need to acquire a lock to ensure that only one process downloads the model
-    bucket_uri = get_mirror_link(model_id)
-    download_path = get_download_path(model_id)
-    base_path = Path(download_path).parent
-    base_path.mkdir(parents=True, exist_ok=True)
-    lock_file = str(base_path / f'{model_id.replace("/",  "--")}.lock')
-    # OSM - There was a problem with this. Need to eval again
-    with FileLock(lock_file):
-        download_model(
-            model_id=model_id, bucket_uri=bucket_uri, s3_sync_args=["--no-sign-request"]
-        )
+    if os.environ["MODEL_PATH"] == "":
+
+        # We need to download the model weights on this machine if they don't exit.
+        # We need to acquire a lock to ensure that only one process downloads the model
+        bucket_uri = get_mirror_link(model_id)
+        download_path = get_download_path(model_id)
+        base_path = Path(download_path).parent
+        base_path.mkdir(parents=True, exist_ok=True)
+        lock_file = str(base_path / f'{model_id.replace("/",  "--")}.lock')
+        # OSM - There was a problem with this. Need to eval again
+        with FileLock(lock_file):
+            download_model(
+                model_id=model_id, bucket_uri=bucket_uri, s3_sync_args=["--no-sign-request"]
+            )
 
     # Sample hyper-parameters for learning rate, batch size, seed and a few other HPs
     lr = config["lr"]
@@ -623,6 +626,7 @@ def parse_args():
 
     parser.add_argument("--test_path", type=str, help="Path to testing jsonl file")
 
+    parser.add_argument("--model-path", type=str, default="", help="Path to model downloaded from HF")
     parser.add_argument(
         "--special_token_path", type=str, help="Path to token json file"
     )
@@ -700,6 +704,7 @@ def main():
             "model_name": args.model_name,
             "block_size": args.ctx_len,
             "eval_batch_size": args.eval_batch_size_per_device,
+            "model_path": args.model_path,
         }
     )
 
@@ -719,11 +724,11 @@ def main():
     user_name = os.environ.get("USER", "songole")
     hf_cache_dir = f"{artifact_storage}/{user_name}/.cache/huggingface"
 
-
     ray.init(
         runtime_env={
             "env_vars": {
                 "HF_HOME": hf_cache_dir,
+                "MODEL_PATH": args.model_path,
                 "RAY_AIR_LOCAL_CACHE_DIR": os.environ["RAY_AIR_LOCAL_CACHE_DIR"],
             },
             "working_dir": ".",
