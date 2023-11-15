@@ -3,11 +3,13 @@ This script merges the weights of a LoRA checkpoint with the base model weights
 to create a single model that can be used for model evaluation.
 """
 
+import ray
 import torch
 import argparse
 import time
 import peft
 from pathlib import Path
+import os
 
 from transformers import (
     AutoModelForCausalLM,
@@ -38,7 +40,8 @@ def parse_args():
         required=True,
     )
 
-    parser.add_argument("--model-name", required=True, type=str, help="7b, 13b or 70b.")
+    parser.add_argument("--model-name", required=True, type=str, help="")
+    parser.add_argument("--model-path", required=False, type=str, default="", help="model path")
 
     parser.add_argument(
         "--checkpoint",
@@ -83,9 +86,8 @@ def test_eval(model, tokenizer):
     decoded = tokenizer.batch_decode(generation_output)
     print("Outputs: ", decoded)
 
-
-def main():
-    args = parse_args()
+@ray.remote(num_gpus=1)
+def main(args):
 
     # Sanity checks
     if not Path(args.checkpoint).exists():
@@ -99,11 +101,12 @@ def main():
 
     # Load orignal model
     s = time.time()
-    model_id = f"meta-llama/Llama-2-{args.model_name}-hf"
+    model_id = args.model_name
+    model_path = args.model_path
+    os.environ["MODEL_PATH"] = model_path
     s3_bucket = get_mirror_link(model_id)
     ckpt_path, _ = get_checkpoint_and_refs_dir(model_id=model_id, bucket_uri=s3_bucket)
 
-    print(f"Downloading original model {model_id} from {s3_bucket} to {ckpt_path} ...")
     print("Loading tokenizer...")
 
     tokenizer = AutoTokenizer.from_pretrained(args.checkpoint, legacy=True)
@@ -111,14 +114,15 @@ def main():
 
     print(f"Saved tokenizer to {args.output_path}")
 
-    download_model(
-        model_id=model_id,
-        bucket_uri=s3_bucket,
-        s3_sync_args=["--no-sign-request"],
-    )
+    if model_path == "":
+        download_model(
+            model_id=model_id,
+            bucket_uri=s3_bucket,
+            s3_sync_args=["--no-sign-request"],
+        )
 
-    print(f"Downloading to {ckpt_path} finished after {time.time() - s} seconds.")
-    print(f"Loading original model from {ckpt_path} ...")
+        print(f"Downloading to {ckpt_path} finished after {time.time() - s} seconds.")
+        print(f"Loading original model from {ckpt_path} ...")
 
     s2 = time.time()
 
@@ -154,4 +158,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    ref = main.remote(args)
+    try:
+        ray.get(ref)
+    except ray.exceptions.TaskCancelledError:
+        print("Object reference was cancelled.")
