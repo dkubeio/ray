@@ -42,13 +42,21 @@ def get_checkpoint_and_refs_dir(
 
         path = os.path.join(TRANSFORMERS_CACHE, f"models--{model_id.replace('/', '--')}")
 
-    f_hash = get_hash_from_bucket(bucket_uri, s3_sync_args)
-    refs_dir = os.path.join(path, "refs")
-    checkpoint_dir = os.path.join(path, "snapshots", f_hash)
+        f_hash = get_hash_from_bucket(bucket_uri, s3_sync_args)
+        refs_dir = os.path.join(path, "refs")
+        checkpoint_dir = os.path.join(path, "snapshots", f_hash)
 
-    if mkdir:
-        os.makedirs(refs_dir, exist_ok=True)
-        os.makedirs(checkpoint_dir, exist_ok=True)
+        if mkdir:
+            os.makedirs(refs_dir, exist_ok=True)
+            os.makedirs(checkpoint_dir, exist_ok=True)
+    else:
+        if os.path.exists(os.path.join(path, "refs")):
+            f_hash = get_hash_from_bucket(bucket_uri, s3_sync_args)
+            refs_dir = os.path.join(path, "refs")
+            checkpoint_dir = os.path.join(path, "snapshots", f_hash)
+        else:
+            checkpoint_dir = path
+            refs_dir = ""
 
     return checkpoint_dir, refs_dir
 
