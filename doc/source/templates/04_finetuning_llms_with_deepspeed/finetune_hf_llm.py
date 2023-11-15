@@ -752,11 +752,14 @@ def main():
     ), "ANYSCALE_ARTIFACT_STORAGE env var must be set!"
     artifact_storage = os.environ["ANYSCALE_ARTIFACT_STORAGE"]
     user_name = re.sub(r"\s+", "__", os.environ.get("ANYSCALE_USERNAME", "user"))
-    '''
     storage_path = (
         f"{artifact_storage}/{user_name}/ft_llms_with_deepspeed/{args.model_name}"
     )
+    '''
 
+    storage_path = (
+        f"{args.output_dir}/{args.model_name}"
+    )
 
 
     trial_name = f"{args.model_name}".split("/")[-1]
@@ -792,12 +795,25 @@ def main():
     # (Ex: in this case, negative perplexity, since we set `checkpoint_score_order=min`)
     best_checkpoint, best_checkpoint_metrics = result.best_checkpoints[-1]
 
+
     print("Results are stored at:")
     print(result.path)
     print("Best checkpoint is stored at:")
     print(best_checkpoint)
     print(f"With perplexity: {best_checkpoint_metrics['perplexity']}")
+    print("Metrics for the best checkpoint")
+    print(best_checkpoint_metrics)
 
+    exp = os.environ["MLFLOW_EXP_NAME"]
+    run = os.environ["SUBMISSION_ID"]
+    os.symlink(best_checkpoint.path, f"{args.output_dir}/final_checkpoint-{exp}-{run}")
+
+    #Log to mlflow
+    from dkube_utils import DKubeRun
+    dkube = DKubeRun(experiment=exp, run=run)
+    # best_checkpoint_metrics has strings for some metrics. Mlflow doesn't like it
+    #dkube.log_metrics(best_checkpoint_metrics)
+    dkube.log_model(best_checkpoint.path)
 
 if __name__ == "__main__":
     main()
