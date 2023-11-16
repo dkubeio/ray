@@ -84,23 +84,25 @@ def download_model(
     to the commit on Hugging Face Hub.
     """
 
-    """
-    s3_sync_args = s3_sync_args or []
-    path = get_download_path(model_id)
+    hf_token = os.getenv("HF_TOKEN", None)
+    
+    if hf_token is None:
+        s3_sync_args = s3_sync_args or []
+        path = get_download_path(model_id)
 
-    cmd = (
-        ["aws", "s3", "sync"]
-        + s3_sync_args
-        + (["--exclude", "*", "--include", "*token*"] if tokenizer_only else [])
-        + [bucket_uri, path]
-    )
-    print(f"RUN({cmd})")
-    subprocess.run(cmd)
-    """
-    from transformers import AutoTokenizer, AutoModelForCausalLM
+        cmd = (
+            ["aws", "s3", "sync"]
+            + s3_sync_args
+            + (["--exclude", "*", "--include", "*token*"] if tokenizer_only else [])
+            + [bucket_uri, path]
+        )
+        print(f"RUN({cmd})")
+        subprocess.run(cmd)
+    else:
+        from transformers import AutoTokenizer, AutoModelForCausalLM
 
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
-    model = AutoModelForCausalLM.from_pretrained(model_id)
+        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        model = AutoModelForCausalLM.from_pretrained(model_id)
     print("done")
 
 

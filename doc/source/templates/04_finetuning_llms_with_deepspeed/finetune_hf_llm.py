@@ -735,6 +735,12 @@ def main():
         }
     )
 
+    # Login to hugging face
+    from huggingface_hub import login
+    hf_token = os.getenv("HF_TOKEN", None)
+    if hf_token:
+        login(token = hf_token)
+
     # Read data
     train_ds = ray.data.read_json(args.train_path)
     if args.test_path is not None:
@@ -811,9 +817,19 @@ def main():
     #Log to mlflow
     from dkube_utils import DKubeRun
     dkube = DKubeRun(experiment=exp, run=run)
-    # best_checkpoint_metrics has strings for some metrics. Mlflow doesn't like it
-    #dkube.log_metrics(best_checkpoint_metrics)
     dkube.log_model(best_checkpoint.path)
-
+    # best_checkpoint_metrics has strings for some metrics. Mlflow doesn't like it
+    ml_metrics = {}
+    ml_params = {}
+    for metric, value in best_checkpoint_metrics.items():
+        if isinstance(value, str):
+            ml_params[metric] = value
+        elif isinstance(value, float) or isinstance(value, int):
+            ml_metrics[metric] = value
+        else:
+            pass #can we serialize this into a string?
+    dkube.log_metrics(ml_metrics)
+    # Can we log other params too here? like our dataset etcs
+    dkube.log_params(ml_params)
 if __name__ == "__main__":
     main()
