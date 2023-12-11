@@ -14,7 +14,7 @@ def get_hash_from_bucket(
     if path == "":
         s3_sync_args = s3_sync_args or []
         subprocess.run(
-            ["aws", "s3", "cp", "--quiet"]
+            ["aws", "s3", "cp", "--quiet", "--no-sign-request"]
             + s3_sync_args
             + [os.path.join(bucket_uri, "refs", "main"), "."]
         )
