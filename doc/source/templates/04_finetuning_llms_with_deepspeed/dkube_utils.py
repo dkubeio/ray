@@ -8,12 +8,14 @@ from typing import Any, Dict, Optional
 import mlflow
 
 class DKubeRun:
-    def __init__(self, experiment:str="finetuning", run:str="run", epoch:Optional[int]=0) -> None:
+    def __init__(self, experiment:str="finetuning", run:str="run", mlflow_tracking_uri:str="http://d3x-controller.d3x.svc.cluster.local:5000", epoch:Optional[int]=0) -> None:
         self.experiment = experiment
         self.run = run
         self._user = os.environ.get("USER", "anonymous")
         self._tags = { "mlflow.user" : self._user }
-        mlflow.set_tracking_uri("http://d3x-controller.d3x.svc.cluster.local:5000")
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
+        if mlflow_tracking_uri.startswith("https"):
+            os.environ['MLFLOW_TRACKING_INSECURE_TLS'] = 'true'
         mlflow.set_experiment(experiment_name=self.experiment)
         self._run_name = self.run + f"-{epoch}"
         with mlflow.start_run(run_name=self._run_name) as newrun:

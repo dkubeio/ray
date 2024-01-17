@@ -812,11 +812,12 @@ def main():
 
     exp = os.environ["MLFLOW_EXP_NAME"]
     run = os.environ["SUBMISSION_ID"]
+    mlflow_tracking_uri = os.environ.get("MLFLOW_TRACKING_URI", "http://d3x-controller.d3x.svc.cluster.local:5000")
     os.symlink(best_checkpoint.path, f"{args.output_dir}/final_checkpoint-{exp}-{run}")
 
     #Log to mlflow
     from dkube_utils import DKubeRun
-    dkube = DKubeRun(experiment=exp, run=run)
+    dkube = DKubeRun(experiment=exp, run=run, mlflow_tracking_uri=mlflow_tracking_uri)
     dkube.log_model(best_checkpoint.path)
     # best_checkpoint_metrics has strings for some metrics. Mlflow doesn't like it
     ml_metrics = {}
